@@ -22,7 +22,6 @@ class TMapper(torch.nn.Module):
 
 class PhiMapper(torch.nn.Module):
     def __init__(self, features_in: int, features_out: int, hidden_dims=512):
-        # implements mapping class parametrized by 3 neural networks
         super(PhiMapper, self).__init__()
         self.features_in = features_in
         self.features_out = features_out
@@ -36,7 +35,7 @@ class PhiMapper(torch.nn.Module):
         )
 
     def forward(self, *input):
-        return self.phi(input)
+        return self.phi(input[0])
 
 
 class OmegaMapper(torch.nn.Module):
@@ -46,15 +45,15 @@ class OmegaMapper(torch.nn.Module):
         self.features_out = features_out
         self.hidden_dims = hidden_dims
         self.omega = torch.nn.Sequential(
-            torch.nn.Linear(self.features_out, self.hidden_dims),
+            torch.nn.Linear(self.features_in, self.hidden_dims),
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.hidden_dims, 1)
+            torch.nn.Linear(self.hidden_dims, self.features_out)
         )
 
     def forward(self, *input) -> torch.Tensor:
-        return self.omega(input)
+        return self.omega(input[0])
 
 
 class UnbalancedLoss:
