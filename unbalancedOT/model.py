@@ -13,7 +13,10 @@ class TMapper(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.hidden_dims, self.features_out)
+            torch.nn.Linear(self.hidden_dims, self.hidden_dims),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.hidden_dims, self.features_out),
+            torch.nn.Softmax()
         )
 
     def forward(self, *input):
@@ -31,7 +34,10 @@ class PhiMapper(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.hidden_dims, 1)
+            torch.nn.Linear(self.hidden_dims, self.hidden_dims),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.hidden_dims, 1),
+            torch.nn.ReLU()
         )
 
     def forward(self, *input):
@@ -49,7 +55,10 @@ class OmegaMapper(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.hidden_dims, self.features_out)
+            torch.nn.Linear(self.hidden_dims, self.hidden_dims),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.hidden_dims, self.features_out),
+            torch.nn.ReLU()
         )
 
     def forward(self, *input) -> torch.Tensor:
