@@ -1,5 +1,33 @@
+from collections import Counter
+
+import numpy as np
 import torch
-import torchvision
+import torch.utils.data
+from typing import List
+
+
+class UnbalancedSampler(torch.utils.data.Sampler):
+
+    def __init__(self, data_source: torch.utils.data.Dataset, class_count: List[int], num_samples=None):
+        super().__init__(data_source)
+        self.data_source = data_source
+
+        if num_samples is not None:
+            self.num_samples = num_samples
+        else:
+            self.num_samples = len(self.data_source)
+
+        self.class_prob = np.array(class_count, dtype=np.float64) / np.sum(class_count)
+        target_list = self.data_source.targets.tolist()
+        self.counter = Counter(target_list)
+        self.p = [self.class_prob[label] / self.counter[label] for label in target_list]
+
+    def __iter__(self):
+        n = len(self.data_source)
+        return iter(torch.from_numpy(np.random.choice(np.arange(n), size=self.num_samples, p=self.p)).tolist())
+
+    def __len__(self):
+        return len(self.data_source)
 
 
 class TMapper(torch.nn.Module):
@@ -84,18 +112,17 @@ def KL_dual(s):
     return torch.exp(s)
 
 
-def Pearson_xi(s):
+def Pearson_xi_dual(s):
     return s ** 2 / 4 + s
 
 
-def Hellinger(s):
+def Hellinger_dual(s):
     return s / (1 - s)
 
 
-def Jensen_Shannon(s):
+def Jensen_Shannon_dual(s):
     # TODO: more numerically stable computation here
     return -torch.log(2 - torch.exp(s))
-
 
 # T = TMapper(10, 5)
 # Xi = PhiMapper(10, 1)
@@ -112,4 +139,3 @@ def Jensen_Shannon(s):
 #         loss_value.backward()
 #         w_optim.step()
 #         txi_optim.step()
-
