@@ -44,7 +44,7 @@ class TMapper(torch.nn.Module):
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.features_out),
-            torch.nn.Softmax()
+            torch.nn.Softmax(dim=1)
         )
 
     def forward(self, *input):
@@ -65,7 +65,7 @@ class PhiMapper(torch.nn.Module):
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, 1),
-            torch.nn.ReLU()
+            torch.nn.Softplus()
         )
 
     def forward(self, *input):
@@ -86,7 +86,6 @@ class OmegaMapper(torch.nn.Module):
             torch.nn.Linear(self.hidden_dims, self.hidden_dims),
             torch.nn.ReLU(),
             torch.nn.Linear(self.hidden_dims, self.features_out),
-            torch.nn.ReLU()
         )
 
     def forward(self, *input) -> torch.Tensor:
@@ -94,17 +93,33 @@ class OmegaMapper(torch.nn.Module):
 
 
 class UnbalancedLoss:
-    def __init__(self, norm_const1: int, norm_const2: int, distance_function, mass_variation_function, dual_function):
+    def __init__(self, norm_const1: float, norm_const2: float, distance_function, mass_variation_function,
+                 dual_function):
         self.norm_const1 = norm_const1
         self.norm_const2 = norm_const2
         self.distance_function = distance_function
         self.mass_variation_function = mass_variation_function
         self.dual_function = dual_function
 
-    def compute(self, x, z, y, t_output, xi_output, f_output, f_t_output):
-        result = self.norm_const1 * self.distance_function(x, t_output) * xi_output + \
-                 self.norm_const1 * self.mass_variation_function(xi_output) + \
-                 self.norm_const1 * xi_output * f_t_output - self.norm_const2 * self.dual_function(f_output)
+    def compute(self, x, z, y, t_output, xi_output, f_output, f_t_output, verbose=False):
+        df_out = self.distance_function(x, t_output)
+        mvf_out = self.mass_variation_function(xi_output)
+        dual_out = self.dual_function(f_output)
+
+        if verbose:
+            print('Mass variation output {}'.format(mvf_out.mean()))
+            print('Distance function output {}'.format(df_out.mean()))
+            print('Dual function output {}'.format(dual_out.mean()))
+
+            print('Terms:')
+            print('First {}'.format((self.norm_const1 * df_out * xi_output).mean()))
+            print('Second {}'.format((self.norm_const1 * mvf_out).mean()))
+            print('Third {}'.format((self.norm_const1 * xi_output * f_t_output).mean()))
+            print('Fourth {}'.format((-self.norm_const2 * dual_out).mean()))
+
+        result = self.norm_const1 * df_out * xi_output + \
+                 self.norm_const1 * mvf_out + \
+                 self.norm_const1 * xi_output * f_t_output - self.norm_const2 * dual_out
         return result.mean()
 
 
@@ -123,19 +138,3 @@ def Hellinger_dual(s):
 def Jensen_Shannon_dual(s):
     # TODO: more numerically stable computation here
     return -torch.log(2 - torch.exp(s))
-
-# T = TMapper(10, 5)
-# Xi = PhiMapper(10, 1)
-# f = OmegaMapper(5, 1)
-# loss = UnbalancedLoss(10, 5)
-# w_optim = torch.optim.SGD(f.parameters(), lr=-1e-2)
-# txi_optim = torch.optim.SGD((T.parameters(), Xi.parameters()), lr=1e-2)
-#
-# def train_loop(data_loader: torch.utils.data.DataLoader):
-#     for X, Z, Y in data_loader:
-#         w_optim.zero_grad()
-#         txi_optim.zero_grad()
-#         loss_value = loss.compute(X, Z, Y, T(X, Z), Xi(X), f(Y), f(T(X, Z)))
-#         loss_value.backward()
-#         w_optim.step()
-#         txi_optim.step()
