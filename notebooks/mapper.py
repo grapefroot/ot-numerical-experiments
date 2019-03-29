@@ -27,19 +27,35 @@ def partial_repair(interpolation_weight, data_first, data_second, coupling, y_fi
             (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
              interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second)), np.concatenate((y_first, y_second))
 
-def random_repair(interpolation_weight, theta, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5]):
+def random_repair_original(data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5, n_repeat=1):
     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
-    selector_0 = np.random.binomial(1, theta, size=data_first.shape[0]) == 1
-    selector_1 = np.random.binomial(1, theta, size=data_second.shape[0]) == 1
     
-    data_first[selector_0] = interpolation_weight * mapped_class_0[selector_0] + (1 - interpolation_weight) * data_first[selector_0]
-    data_second[selector_1] = interpolation_weight * mapped_class_1[selector_1] + (1 - interpolation_weight) * data_second[selector_1]
-    
+    for i in range(n_repeat):
+        selector_0 = np.random.binomial(1, theta, size=(data_first.shape[0], 1))
+        selector_1 = np.random.binomial(1, theta, size=(data_second.shape[0], 1))
+
+        new_first = selector_0 * mapped_class_0 + (1 - selector_0) * data_first
+        new_second = selector_1 * mapped_class_1 + (1 - selector_1) * data_second
+
+        repaired = np.concatenate((new_first, new_second))
     if y_first is None or y_second is None:
-        return np.concatenate(
-            (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
-             interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second))
+        return repaired
     else:
-        return np.concatenate(
-            (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
-             interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second)), np.concatenate((y_first, y_second))
+        return repaired, np.concatenate((y_first, y_second))
+    
+# def random_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5):
+#     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
+#     selector_0 = np.random.binomial(1, theta, size=data_first.shape[0]) == 1
+#     selector_1 = np.random.binomial(1, theta, size=data_second.shape[0]) == 1
+    
+#     data_first[selector_0] = interpolation_weight * mapped_class_0[selector_0] + (1 - interpolation_weight) * data_first[selector_0]
+#     data_second[selector_1] = interpolation_weight * mapped_class_1[selector_1] + (1 - interpolation_weight) * data_second[selector_1]
+    
+#     if y_first is None or y_second is None:
+#         return np.concatenate(
+#             (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
+#              interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second))
+#     else:
+#         return np.concatenate(
+#             (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
+#              interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second)), np.concatenate((y_first, y_second))
