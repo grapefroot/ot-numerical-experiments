@@ -112,7 +112,7 @@ def evaluate_metrics(y_true, y_predicted, protected_variable, fairness_metrics, 
     return {**predicted_fairness_dict, **target_fairness_dict, **accuracy_dict}
 
 
-def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_test, repair_funciton, clf, predicted_fairness_dict, accuracy_metrics_dict, name, *args, **kwargs):
+def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_test, repair_funciton, clf, predicted_fairness_dict, accuracy_metrics_dict, name, n_trials = 1, *args, **kwargs):
     """
     Name:str - name of the method to repair
     Returns:
@@ -122,10 +122,17 @@ def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_t
     metrics_values['name'] = name
     num = 100
     for repair_value in tqdm(np.linspace(0, 1, num=num)):
-        X_new, y_new = repair_funciton(repair_value, conditional_0, conditional_1, y_first, y_second)
-        y_predicted = clf.predict(X_new)
-        metrics_value = evaluate_metrics(y_new, y_predicted, protected_test, predicted_fairness_dict, accuracy_metrics_dict)
-        for key, value in metrics_value.items():
+        trial_container = defaultdict(list)
+        for trial_index in range(n_trials):
+            X_new, y_new = repair_funciton(repair_value, conditional_0, conditional_1, y_first, y_second)
+            y_predicted = clf.predict(X_new)
+            metrics_value = evaluate_metrics(y_new, y_predicted, protected_test, predicted_fairness_dict, accuracy_metrics_dict)
+            for key, value in metrics_value.items():
+                trial_container[key].append(value)
+        #average within each container    
+        trial_container = {key:np.mean(value, axis=0) for (key, value) in trial_container.items()}
+            
+        for key, value in trial_container.items():
             metrics_values[key].append(value)
     return metrics_values
 
