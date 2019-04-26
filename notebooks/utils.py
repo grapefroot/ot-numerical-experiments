@@ -4,6 +4,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 
 def confusion_matrix(predictions, protected_attribute):
@@ -14,6 +15,14 @@ def confusion_matrix(predictions, protected_attribute):
     d = np.sum((predictions == 1) & (protected_attribute == 1)) / n
     return a, b, c, d
 
+def pretty_confusion_matrix(predictions, protected_attribute):
+    a, b, c, d = confusion_matrix(predictions, protected_attribute)
+    data = np.empty((2, 2))
+    data[0, 0] = a
+    data[0, 1] = c
+    data[1 ,0] = b
+    data[1, 1] = d
+    return pd.DataFrame(data=data, index=['C = 0', 'C = 1'], columns=['Y = 0', 'Y = 1'])
 
 def balanced_error_rate(y_true, y_pred, protected_attributes):
     pass

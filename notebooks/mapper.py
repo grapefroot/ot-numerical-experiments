@@ -16,7 +16,7 @@ def full_repair(data_first, data_second, coupling, y_first=None, y_second=None, 
     else:
         return np.concatenate((mapped_class_0, mapped_class_1)), np.concatenate((y_first, y_second))
 
-def partial_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5]):
+def partial_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], subsets=None):
     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
     if y_first is None or y_second is None:
         return np.concatenate(
@@ -25,7 +25,7 @@ def partial_repair(interpolation_weight, data_first, data_second, coupling, y_fi
     else:
         return np.concatenate(
             (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
-             interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second)), np.concatenate((y_first, y_second))
+             interpolation_weight * mapped_class_1 + (1 - interpolati on_weight) * data_second)), np.concatenate((y_first, y_second))
 
 def random_repair_original(data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5, n_repeat=1):
     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
@@ -42,6 +42,9 @@ def random_repair_original(data_first, data_second, coupling, y_first=None, y_se
         return repaired
     else:
         return repaired, np.concatenate((y_first, y_second))
+    
+def subset_repair(original, mapped, mask):
+    return mask * mapped + (1 - mask) * original
     
 # def random_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5):
 #     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
