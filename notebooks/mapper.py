@@ -16,36 +16,37 @@ def full_repair(data_first, data_second, coupling, y_first=None, y_second=None, 
     else:
         return np.concatenate((mapped_class_0, mapped_class_1)), np.concatenate((y_first, y_second))
 
-def partial_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], subsets=None):
+def linear_interpolation(mapped, original, coef):
+    return coef * mapped + (1 - coef) * original
+    
+def partial_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], mask=True):
     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
+    
+    repaired = np.concatenate((linear_interpolation(mapped_class_0, data_first, interpolation_weight),
+                               linear_interpolation(mapped_class_1, data_second, interpolation_weight)))
+    masked = linear_interpolation(repaired, np.concatenate((data_first, data_second)), mask)
     if y_first is None or y_second is None:
-        return np.concatenate(
-            (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
-             interpolation_weight * mapped_class_1 + (1 - interpolation_weight) * data_second))
+        return masked
     else:
-        return np.concatenate(
-            (interpolation_weight * mapped_class_0 + (1 - interpolation_weight) * data_first,
-             interpolation_weight * mapped_class_1 + (1 - interpolati on_weight) * data_second)), np.concatenate((y_first, y_second))
+        return masked, np.concatenate((y_first, y_second))
 
-def random_repair_original(data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5, n_repeat=1):
+def random_repair_original(data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5, n_repeat=1, mask=True):
     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
     
     for i in range(n_repeat):
-        selector_0 = np.random.binomial(1, theta, size=(data_first.shape[0], 1))
+        selector_0 = np.random.binomial(1, theta, size=(data_first.shape[0], 1)) 
         selector_1 = np.random.binomial(1, theta, size=(data_second.shape[0], 1))
 
         new_first = selector_0 * mapped_class_0 + (1 - selector_0) * data_first
         new_second = selector_1 * mapped_class_1 + (1 - selector_1) * data_second
 
         repaired = np.concatenate((new_first, new_second))
+        masked = linear_interpolation(repaired, np.concatenate((data_first, data_second)), mask)
     if y_first is None or y_second is None:
-        return repaired
+        return masked
     else:
-        return repaired, np.concatenate((y_first, y_second))
-    
-def subset_repair(original, mapped, mask):
-    return mask * mapped + (1 - mask) * original
-    
+        return masked, np.concatenate((y_first, y_second))
+        
 # def random_repair(interpolation_weight, data_first, data_second, coupling, y_first=None, y_second=None, weights=[0.5, 0.5], theta=0.5):
 #     mapped_class_0, mapped_class_1 = construct_map(weights, data_first, data_second, coupling)
 #     selector_0 = np.random.binomial(1, theta, size=data_first.shape[0]) == 1

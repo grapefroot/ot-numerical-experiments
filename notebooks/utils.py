@@ -5,6 +5,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import math
+from sklearn.metrics import accuracy_score, f1_score
 
 
 def confusion_matrix(predictions, protected_attribute):
@@ -22,7 +24,7 @@ def pretty_confusion_matrix(predictions, protected_attribute):
     data[0, 1] = c
     data[1 ,0] = b
     data[1, 1] = d
-    return pd.DataFrame(data=data, index=['C = 0', 'C = 1'], columns=['Y = 0', 'Y = 1'])
+    return pd.DataFrame(data=data * predictions.shape[0], index=['C = 0', 'C = 1'], columns=['Y = 0', 'Y = 1'])
 
 def balanced_error_rate(y_true, y_pred, protected_attributes):
     pass
@@ -121,7 +123,7 @@ def evaluate_metrics(y_true, y_predicted, protected_variable, fairness_metrics, 
     return {**predicted_fairness_dict, **target_fairness_dict, **accuracy_dict}
 
 
-def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_test, repair_funciton, clf, predicted_fairness_dict, accuracy_metrics_dict, name, n_trials = 1, *args, **kwargs):
+def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_test, repair_funciton, clf, predicted_fairness_dict, accuracy_metrics_dict, name, n_trials = 1, threshold = 0.5, num=100, *args, **kwargs):
     """
     Name:str - name of the method to repair
     Returns:
@@ -129,12 +131,11 @@ def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_t
     """
     metrics_values = defaultdict(list)
     metrics_values['name'] = name
-    num = 100
-    for repair_value in tqdm(np.linspace(0, 1, num=num)):
+    for repair_value in tqdm(np.linspace(0.01, 1, num=num)):
         trial_container = defaultdict(list)
         for trial_index in range(n_trials):
             X_new, y_new = repair_funciton(repair_value, conditional_0, conditional_1, y_first, y_second)
-            y_predicted = clf.predict(X_new)
+            y_predicted = (clf.predict_proba(X_new)[:, 1] >= threshold).astype(np.int)
             metrics_value = evaluate_metrics(y_new, y_predicted, protected_test, predicted_fairness_dict, accuracy_metrics_dict)
             for key, value in metrics_value.items():
                 trial_container[key].append(value)
@@ -146,7 +147,7 @@ def evaluate_repair(conditional_0, conditional_1, y_first, y_second, protected_t
     return metrics_values
 
 
-def plot_metrics(metric_dicts, what_to_plot=None):
+def plot_metrics(metric_dicts, what_to_plot=None, subplot_shape=None, subplot_size=None):
     """
     Metric dicts: List[dict] - list of dictionaries corresponding to metrics
     what_to_plot: List[str] - list of metric names
@@ -159,19 +160,81 @@ def plot_metrics(metric_dicts, what_to_plot=None):
         
     if not isinstance(what_to_plot, list):
         what_to_plot = [what_to_plot]
+     
+    if subplot_shape is None:
+        nrows, ncols = len(what_to_plot), 1
+    else:
+        nrows, ncols = subplot_shape
+        
+    if subplot_size is None:
+        figsize = (10, 10*len(what_to_plot))
+    else:
+        figsize = subplot_size
     
-    fix, axes = plt.subplots(nrows=len(what_to_plot), ncols=1, figsize=(10, 10*len(what_to_plot)))
+    with sns.axes_style('darkgrid'):    
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+        
+        for subplot_index, metric_name in enumerate(what_to_plot):
+            for entry in metric_dicts:
+                values = entry[metric_name]
+                axes[subplot_index].set_title(metric_name)
+
+                if metric_name.startswith('CI'):
+                    tn, lower, upper = zip(*values)
+                    axes[subplot_index].plot(np.linspace(0, 1, num=len(values)), tn, label=entry['name'])
+                    axes[subplot_index].fill_between(np.linspace(0, 1, num=len(values)), upper, lower, alpha=0.5)
+                else:    
+                    axes[subplot_index].plot(np.linspace(0, 1, num=len(values)), values, label=entry['name'])
+                axes[subplot_index].set_ylim(0, 1.5)
+                axes[subplot_index].axhline(y=0.8, xmin=0, xmax=1, linestyle=':')
+                axes[subplot_index].axhline(y=1.2, xmin=0, xmax=1, linestyle=':')
+                axes[subplot_index].legend()
+       # plt.show()
+    return fig, axes 
     
-    for subplot_index, metric_name in enumerate(what_to_plot):
-        for entry in metric_dicts:
-            values = entry[metric_name]
-            axes[subplot_index].set_title(metric_name)
-            
-            if metric_name.startswith('CI'):
-                tn, lower, upper = zip(*values)
-                axes[subplot_index].plot(np.linspace(0, 1, num=len(values)), tn, label=entry['name'])
-                axes[subplot_index].fill_between(np.linspace(0, 1, num=len(values)), upper, lower, alpha=0.5)
-            else:    
-                axes[subplot_index].plot(np.linspace(0, 1, num=len(values)), values, label=entry['name'])
-            axes[subplot_index].legend()
-    plt.show()
+    
+def plot_pies(points, protected_variable, label, *args, **kwargs):
+    plt.figure(figsize=(20, 20))
+    
+    r1 = 0.5
+    r2 = r1 + 0.5
+
+    size=100
+    
+    x = [0] + np.cos(np.linspace(0, 2*math.pi*r1, 10)).tolist()
+    y = [0] + np.sin(np.linspace(0, 2*math.pi*r1, 10)).tolist()
+
+    xy1 = list(zip(x, y))
+    s1 = max(max(x), max(y))
+
+    # ...
+    x = [0] + np.cos(np.linspace(2*math.pi*r1, 2*math.pi*r2, 10)).tolist()
+    y = [0] + np.sin(np.linspace(2*math.pi*r1, 2*math.pi*r2, 10)).tolist()
+    
+    xy2 = list(zip(x, y))
+    s2 = max(max(x), max(y))
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    #algorithm1
+    ax.scatter(points[:, 0], points[:, 1], marker=(xy1, 0),
+               s=size, c=protected_variable, label='protected variable', *args, **kwargs)
+
+    #algorithm2
+    ax.scatter(points[:, 0], points[:, 1], marker=(xy2, 0),
+               s=size, c=label, label='label', *args, **kwargs)
+
+    plt.legend(loc='best', fontsize = 'x-large')
+        
+ #   plt.show()
+    return fig, ax
+    
+def di_acc_curve(clf, data, labels, protected):
+    probas = clf.predict_proba(data)[:, 1]
+    accuracy = []
+    di = []
+    for thresh in np.linspace(0.1, 0.9, num=100):
+        predictions =  (probas >= thresh).astype(np.int)
+        accuracy.append(accuracy_score(labels, predictions))
+        di.append(disparate_impact(predictions, protected))
+    return accuracy, di
